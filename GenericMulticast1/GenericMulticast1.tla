@@ -1,4 +1,4 @@
--------------------- MODULE GenericMulticast --------------------
+-------------------- MODULE GenericMulticast1 --------------------
 EXTENDS Naturals
 
 CONSTANT NPROCESSES
@@ -23,7 +23,8 @@ NeverConflict(x, y) == FALSE
 
 -----------------------------------------------------------------
 
-Init == TRUE
+Init ==
+    /\ AtomicBroadcast!Init
 
 Spec == TRUE
 
