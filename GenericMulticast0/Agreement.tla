@@ -2,12 +2,12 @@
 
 EXTENDS Naturals, FiniteSets
 
+Commons == INSTANCE Commons
+
 CONSTANT NPROCESSES
 CONSTANT NMESSAGES
 
 ----------------------------------------------------------
-
-Never(x, y) == FALSE
 
 VARIABLES
     K,
@@ -18,7 +18,7 @@ VARIABLES
     Votes,
     QuasiReliableChannel
 GenericMulticast0 == INSTANCE GenericMulticast0 WITH
-    CONFLICTR <- Never,
+    CONFLICTR <- Commons!NeverConflict,
     INITIAL_MESSAGES <- {}
 
 

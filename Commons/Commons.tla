@@ -1,8 +1,11 @@
 -------------------- MODULE Commons --------------------
 
+LOCAL INSTANCE Naturals
+LOCAL INSTANCE FiniteSets
+
 LOCAL IsEven(x) == x % 2 = 0
 
-ByIdConflict(m, m) == IsEven(m.id) = IsEven(n.id)
+ByIdConflict(m, n) == IsEven(m.id) = IsEven(n.id)
 
 AlwaysConflict(m, n) == TRUE
 
