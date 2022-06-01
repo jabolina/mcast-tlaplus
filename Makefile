@@ -2,11 +2,14 @@ ROOT_FOLDER=$(PWD)
 
 export ROOT_FOLDER
 
-mcast0:
-	@$(MAKE) -C GenericMulticast0 simple
-
-mcast0-agreement:
+m0-agreement:
 	@$(MAKE) -C GenericMulticast0 agreement
+
+m0-integrity:
+	@$(MAKE) -C GenericMulticast0 integrity
+
+m0-validity:
+	@$(MAKE) -C GenericMulticast0 validity
 
 mcast1:
 	@$(MAKE) -C GenericMulticast1

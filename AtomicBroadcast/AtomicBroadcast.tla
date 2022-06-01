@@ -21,22 +21,25 @@ VARIABLES
 vars == <<AtomicBroadcastBuffer>>
 
 ---------------------------------------------------------------------
-GroupHasValue ==
-    Len(AtomicBroadcastBuffer) > 0
+LOCAL HasValue(g, p) ==
+    Len(AtomicBroadcastBuffer[g][p]) > 0
 
 GroupABroadcast(g, m) ==
-    [i \in 1..Len(AtomicBroadcastBuffer) |-> Append(AtomicBroadcastBuffer[i], m)]
+    /\ AtomicBroadcastBuffer' = [i \in 1 .. Len(AtomicBroadcastBuffer[g]) |-> Append(AtomicBroadcastBuffer[i], m)]
 
-GroupABDeliver(g) ==
-    Tail(AtomicBroadcastBuffer)
+GroupABDeliver(g, p, Fn(_)) ==
+    /\ GroupHasValue(g, p)
+    /\ LET
+        m = Head(AtomicBroadcastBuffer[g][p])
+       IN
+        /\ Fn(m)
+        /\ AtomicBroadcastBuffer' = [AtomicBroadcastBuffer EXCEPT ![g][p] = Tail(AtomicBroadcastBuffer[g][p])]
 
-GroupPeek(g) ==
-    Head(AtomicBroadcastBuffer)
 
 ---------------------------------------------------------------------
 
 Init ==
-    /\ AtomicBroadcastBuffer = [i \in 1 .. NPROCESSES |-> INITIAL_MESSAGES]
+    /\ AtomicBroadcastBuffer = [g \in 1 .. NGROUPS |-> [p \in 1 .. NPROCESSES |-> INITIAL_MESSAGES]]
 
 Next ==
     \/ UNCHANGED vars

@@ -23,16 +23,25 @@ LOCAL SendToGroup(g, m) ==
     [p \in DOMAIN g |-> g[p] \cup {m}]
 
 LOCAL SendTo(s, m) ==
-    [p \in DOMAIN s |-> IF p \in m.d THEN SendToGroup(s[p], m) ELSE s[p]]
+    [p \in DOMAIN s |-> SendToGroup(s[p], m)]
 
-Send(m) == SendTo(QuasiReliableChannel, m)
+Send(m) ==
+    /\ QuasiReliableChannel' = SendTo(QuasiReliableChannel, m)
 
-Receive(group, process, cb(_)) ==
-    /\ LET
-        m == CHOOSE p \in QuasiReliableChannel[group][process]: TRUE
-       IN
-        /\ cb(m)
-        /\ QuasiReliableChannel' = [QuasiReliableChannel EXCEPT ![group][process] = @ \ m]
+LOCAL SendMapToGroup(g, Fn(_, _)) ==
+    [p \in DOMAIN g |-> Fn(p, g[p])]
+
+SendMap(Fn(_, _)) ==
+    /\ QuasiReliableChannel' = [p \in DOMAIN QuasiReliableChannel |-> SendMapToGroup(QuasiReliableChannel[p], Fn)]
+
+Receive(g, p, Fn(_)) ==
+    /\ \E m \in QuasiReliableChannel[g][p]: Fn(m)
+
+Consume(g, p, m) ==
+    /\ QuasiReliableChannel' = [QuasiReliableChannel EXCEPT ![g][p] = @ \ {m}]
+
+ReceiveAndConsume(g, p, Fn(_)) ==
+    /\ Receive(g, p, LAMBDA m: Fn(m) /\ Consume(g, p, m))
 
 --------------------------------------------------------------
 
