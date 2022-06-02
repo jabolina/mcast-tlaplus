@@ -1,20 +1,17 @@
 SPEC_FOLDER=$(ROOT_FOLDER)/GenericMulticast0
 
 agreement:
-	@echo "===== Always conflicting! ====="
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Agreement/Agreement.tla Agreement/Agreement-AlwaysConflict.cfg
-	@echo "===== Never conflicting! ====="
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Agreement/Agreement.tla Agreement/Agreement-NeverConflict.cfg
-	@echo "===== ID conflicting! ====="
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Agreement/Agreement.tla Agreement/Agreement-IdConflict.cfg
+	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Agreement
+
+collision:
+	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Collision
 
 integrity:
-	@echo "===== Always conflicting! ====="
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Integrity/Integrity.tla Integrity/Integrity-AlwaysConflict.cfg
-	@echo "===== Never conflicting! ====="
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Integrity/Integrity.tla Integrity/Integrity-NeverConflict.cfg
-	@echo "===== ID conflicting! ====="
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Integrity/Integrity.tla Integrity/Integrity-IdConflict.cfg
+	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Integrity
+
+partial-order:
+	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) PartialOrder
 
 validity:
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Validity/Validity.tla
+	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Validity
+

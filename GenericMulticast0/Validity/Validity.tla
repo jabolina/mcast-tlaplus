@@ -1,10 +1,9 @@
 ---- MODULE Validity ----
-EXTENDS Naturals, FiniteSets
-
-Commons == INSTANCE Commons
+EXTENDS Naturals, FiniteSets, Commons
 
 CONSTANT NPROCESSES
 CONSTANT NMESSAGES
+CONSTANT CONFLICTR(_, _)
 
 ----------------------------------------------------------
 
@@ -23,7 +22,6 @@ VARIABLES
     Votes,
     QuasiReliableChannel
 Algorithm == INSTANCE GenericMulticast0 WITH
-    CONFLICTR <- Commons!NeverConflict,
     INITIAL_MESSAGES <- {<<"S0", m>>: m \in AllMessages}
 
 
