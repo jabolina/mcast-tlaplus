@@ -1,2 +1,4 @@
-simple:
-	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(ROOT_FOLDER)/GenericMulticast1 GenericMulticast1.tla
+SPEC_FOLDER=$(ROOT_FOLDER)/GenericMulticast1
+
+agreement:
+	sh $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) Agreement

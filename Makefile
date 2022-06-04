@@ -20,8 +20,8 @@ m0-strictness:
 m0-validity:
 	@$(MAKE) -C GenericMulticast0 validity
 
-mcast1:
-	@$(MAKE) -C GenericMulticast1
+m1-agreement:
+	@$(MAKE) -C GenericMulticast1 agreement
 
 prune:
 	$$0 $(ROOT_FOLDER)/bin/prune.sh

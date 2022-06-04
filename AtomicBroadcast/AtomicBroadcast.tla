@@ -1,15 +1,12 @@
 -------------------- MODULE AtomicBroadcast --------------------
 
 LOCAL INSTANCE Naturals
-LOCAL INSTANCE FiniteSets
 LOCAL INSTANCE Sequences
 
 ---------------------------------------------------------------------
 
 CONSTANT NPROCESSES
-
 CONSTANT NGROUPS
-
 CONSTANT INITIAL_MESSAGES
 
 ---------------------------------------------------------------------
@@ -24,17 +21,19 @@ vars == <<AtomicBroadcastBuffer>>
 LOCAL HasValue(g, p) ==
     Len(AtomicBroadcastBuffer[g][p]) > 0
 
-GroupABroadcast(g, m) ==
-    /\ AtomicBroadcastBuffer' = [i \in 1 .. Len(AtomicBroadcastBuffer[g]) |-> Append(AtomicBroadcastBuffer[i], m)]
+LOCAL PropagateInGroup(G, m) ==
+    [i \in DOMAIN G |-> Append(G[i], m)]
 
-GroupABDeliver(g, p, Fn(_)) ==
-    /\ GroupHasValue(g, p)
+ABroadcast(g, m) ==
+    /\ AtomicBroadcastBuffer' = [AtomicBroadcastBuffer EXCEPT ![g] = PropagateInGroup(AtomicBroadcastBuffer[g], m)]
+
+ABDeliver(g, p, Fn(_)) ==
+    /\ HasValue(g, p)
     /\ LET
-        m = Head(AtomicBroadcastBuffer[g][p])
+        m == Head(AtomicBroadcastBuffer[g][p])
        IN
         /\ Fn(m)
         /\ AtomicBroadcastBuffer' = [AtomicBroadcastBuffer EXCEPT ![g][p] = Tail(AtomicBroadcastBuffer[g][p])]
-
 
 ---------------------------------------------------------------------
 
