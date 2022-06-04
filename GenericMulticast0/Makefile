@@ -12,6 +12,9 @@ integrity:
 partial-order:
 	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) PartialOrder
 
+strictness:
+	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Strictness
+
 validity:
 	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Validity
 

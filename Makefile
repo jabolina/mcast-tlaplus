@@ -11,11 +11,14 @@ m0-collision:
 m0-integrity:
 	@$(MAKE) -C GenericMulticast0 integrity
 
-m0-validity:
-	@$(MAKE) -C GenericMulticast0 validity
-
 m0-partial-order:
 	@$(MAKE) -C GenericMulticast0 partial-order
+
+m0-strictness:
+	@$(MAKE) -C GenericMulticast0 strictness
+
+m0-validity:
+	@$(MAKE) -C GenericMulticast0 validity
 
 mcast1:
 	@$(MAKE) -C GenericMulticast1

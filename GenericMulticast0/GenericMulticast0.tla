@@ -192,7 +192,8 @@ DoDeliver(self) ==
             index == Cardinality(Delivered[self])
            IN
             /\ Delivering' = [Delivering EXCEPT ![self] = @ \ F]
-            /\ Delivered' = [Delivered EXCEPT ![self] = Delivered[self] \cup {<<index, F>>}]
+            /\ Delivered' = [Delivered EXCEPT ![self] = Delivered[self] \cup AppendEnumerating(index, F)]
+            \*/\ Delivered' = [Delivered EXCEPT ![self] = Delivered[self] \cup {<<index, F>>}]
             /\ UNCHANGED <<QuasiReliableChannel, Votes, Pending, PreviousMsgs, K>>
 
 ------------------------------------------------------------------
@@ -259,14 +260,14 @@ ASSUME
 ------------------------------------------------------------------
 
 WasDelivered(p, m) ==
-    /\ \E <<idx, msgs>> \in Delivered[p]:
-        \E n \in msgs:
+    /\ \E <<idx, n>> \in Delivered[p]:
+        \* \E n \in msgs:
             n.id = m.id
 
 DeliveredInstant(p, m) ==
-    (CHOOSE <<index, msgs>> \in Delivered[p]: \E n \in msgs: m.id = n.id)[1]
+    (CHOOSE <<index, n>> \in Delivered[p]: m.id = n.id)[1]
 
 FilterDeliveredMessages(p, m) ==
-    { <<idx, msgs>> \in Delivered[p] : \E n \in msgs : n.id = m.id }
+    {<<idx, msgs>> \in Delivered[p] : \E n \in msgs : n.id = m.id}
 
 ==================================================================
