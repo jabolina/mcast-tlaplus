@@ -70,6 +70,7 @@ Step(g, p) ==
 
 LOCAL GroupStep(g) ==
     \E p \in Processes: Step(g, p)
+
 Next ==
     \/ \E g \in Groups: GroupStep(g)
     \/ UNCHANGED vars
