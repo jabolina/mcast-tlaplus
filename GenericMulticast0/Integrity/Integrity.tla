@@ -24,7 +24,7 @@ VARIABLES
     Votes,
     QuasiReliableChannel
 Algorithm == INSTANCE GenericMulticast0 WITH
-    INITIAL_MESSAGES <- {<<"S0", 0, m>>: m \in SentMessage}
+    INITIAL_MESSAGES <- {<<"S0", m>>: m \in SentMessage}
 
 
 vars == <<

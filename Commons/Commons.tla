@@ -2,7 +2,6 @@
 
 LOCAL INSTANCE Naturals
 LOCAL INSTANCE FiniteSets
-LOCAL INSTANCE TLC
 
 LOCAL IsEven(x) == x % 2 = 0
 

@@ -68,14 +68,14 @@ vars == <<
 (*                                                                         *)
 (***************************************************************************)
 LOCAL SendOriginatorAndRemoveLocal(self, dest, curr, prev, S) ==
-    IF self = dest /\ prev[3].o = self THEN (S \ {prev}) \cup {curr}
-    ELSE IF prev[3].o = dest THEN S \cup {curr}
+    IF self = dest /\ prev[2].o = self THEN (S \ {prev}) \cup {curr}
+    ELSE IF prev[2].o = dest THEN S \cup {curr}
     ELSE IF self = dest THEN S \ {prev}
     ELSE S
 
 ------------------------------------------------------------------
 
-LOCAL AssignTimestampHandler(self, ts, msg) ==
+LOCAL AssignTimestampHandler(self, msg) ==
     /\ \/ /\ \E prev \in PreviousMsgs[self]: CONFLICTR(msg, prev)
           /\ K' = [K EXCEPT ![self] = K[self] + 1]
           /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![self] = {msg}]
@@ -83,7 +83,7 @@ LOCAL AssignTimestampHandler(self, ts, msg) ==
           /\ K' = [K EXCEPT ![self] = K[self]]
           /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![self] = PreviousMsgs[self] \cup {msg}]
     /\ Pending' = [Pending EXCEPT ![self] = Pending[self] \cup {<<K'[self], msg>>}]
-    /\ QuasiReliable!SendMap(LAMBDA dest, S: SendOriginatorAndRemoveLocal(self, dest, <<"S1", K'[self], msg, self>>, <<"S0", ts, msg>>, S))
+    /\ QuasiReliable!SendMap(LAMBDA dest, S: SendOriginatorAndRemoveLocal(self, dest, <<"S1", K'[self], msg, self>>, <<"S0", msg>>, S))
     /\ UNCHANGED <<Delivering, Delivered, Votes>>
 
 LOCAL ComputeSeqNumberHandler(self, ts, msg, origin) ==
@@ -128,7 +128,7 @@ AssignTimestamp(self) ==
     \* We delegate to the lambda to handle the message while filtering for
     \* the correct state.
     /\ QuasiReliable!Receive(1, self,
-        LAMBDA t: t[1] = "S0" /\ AssignTimestampHandler(self, t[2], t[3]))
+        LAMBDA t: t[1] = "S0" /\ AssignTimestampHandler(self, t[2]))
 
 (***************************************************************************)
 (*                                                                         *)
