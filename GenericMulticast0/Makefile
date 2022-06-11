@@ -1,17 +1,20 @@
 SPEC_FOLDER=$(ROOT_FOLDER)/GenericMulticast0
 
 agreement:
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Agreement
+	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) Agreement
 
 collision:
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Collision
+	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) Collision
 
 integrity:
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Integrity
+	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) Integrity
 
 partial-order:
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) PartialOrder
+	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) PartialOrder
+
+strictness:
+	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) Strictness
 
 validity:
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Validity
+	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) Validity
 

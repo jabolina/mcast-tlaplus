@@ -10,7 +10,7 @@ CONSTANT CONFLICTR(_, _)
 LOCAL Processes == {i : i \in 1 .. NPROCESSES}
 LOCAL ChooseProcess == CHOOSE x \in Processes : TRUE
 LOCAL AcceptableMessageIds == {id : id \in 1 .. NMESSAGES}
-LOCAL AllMessages == { [ id |-> id, d |-> Processes, ts |-> 0, s |-> ChooseProcess ] : id \in 1 .. (NMESSAGES + 5) }
+LOCAL AllMessages == { [ id |-> id, d |-> Processes, o |-> ChooseProcess ] : id \in 1 .. (NMESSAGES + 1) }
 LOCAL SentMessage == {m \in AllMessages: m.id \in AcceptableMessageIds}
 
 ----------------------------------------------------------
