@@ -9,7 +9,7 @@ CONSTANT CONFLICTR(_, _)
 
 LOCAL Processes == {i : i \in 1 .. NPROCESSES}
 LOCAL ChooseProcess == CHOOSE x \in Processes : TRUE
-LOCAL AllMessages == { [ id |-> id, d |-> Processes, ts |-> 0, s |-> ChooseProcess ] : id \in 1 .. NMESSAGES }
+LOCAL AllMessages == { [ id |-> id, d |-> Processes, o |-> ChooseProcess ] : id \in 1 .. NMESSAGES }
 
 ----------------------------------------------------------
 
@@ -22,7 +22,7 @@ VARIABLES
     Votes,
     QuasiReliableChannel
 Algorithm == INSTANCE GenericMulticast0 WITH
-    INITIAL_MESSAGES <- {<<"S0", m>>: m \in AllMessages}
+    INITIAL_MESSAGES <- {<<"S0", 0, m>>: m \in AllMessages}
 
 
 vars == <<
@@ -52,5 +52,5 @@ Spec == Algorithm!SpecFair
 (***************************************************************************)
 Validity ==
     \A m \in AllMessages:
-        m.s \in Processes ~> \E q \in m.d: Algorithm!WasDelivered(q, m)
+        m.o \in Processes ~> \E q \in m.d: Algorithm!WasDelivered(q, m)
 ==========================================================

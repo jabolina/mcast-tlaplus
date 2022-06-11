@@ -14,16 +14,26 @@ NeverConflict(m, n) == FALSE
 
 --------------------------------------------------------
 
-CreateMessage(m, k) == [ id |-> m.id, d |-> m.d, ts |-> k ]
+CreateMessage(m, k) == [ id |-> m.id, d |-> m.d ]
 
 StrictlySmaller(m, n) ==
     /\ \/ m.ts < n.ts
        \/ m.id < n.id /\ m.ts = n.ts
 
+--------------------------------------------------------
+
+(***************************************************************************)
+(* An infix operator that can merge two structures into a single one.      *)
+(*                                                                         *)
+(* Elements in the right side can override the values on the left side.    *)
+(***************************************************************************)
 LOCAL join(l, r, LS, RS) ==
     [p \in LS \union RS |-> IF p \in LS THEN l[p] ELSE r[p] ]
 l | r ==
     join(l, r, DOMAIN l, DOMAIN r)
+
+l / r ==
+    [x \in (DOMAIN l) \ r |-> l[x]]
 --------------------------------------------------------
 
 \* https://github.com/tlaplus/CommunityModules/blob/beb1b41f78c4e850848e1bc3e89be722a98cbb06/modules/Functions.tla#L42-L49

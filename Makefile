@@ -23,3 +23,5 @@ m0-validity:
 mcast1:
 	@$(MAKE) -C GenericMulticast1
 
+prune:
+	$$0 $(ROOT_FOLDER)/bin/prune.sh

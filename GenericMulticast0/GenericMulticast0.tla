@@ -60,56 +60,52 @@ vars == <<
 ------------------------------------------------------------------
 
 LOCAL SendOriginatorAndRemoveLocal(self, dest, curr, prev, S) ==
-    IF self = dest /\ prev[2].s = self THEN (S \ {prev}) \cup {curr}
-    ELSE IF prev[2].s = dest THEN S \cup {curr}
+    IF self = dest /\ prev[3].o = self THEN (S \ {prev}) \cup {curr}
+    ELSE IF prev[3].o = dest THEN S \cup {curr}
     ELSE IF self = dest THEN S \ {prev}
     ELSE S
 
 LOCAL SendAllRemoveLocal(curr, prev, S) ==
     (S \ {prev}) \cup {curr}
 
-LOCAL AssignTimestampHandler(self, msg) ==
+------------------------------------------------------------------
+
+LOCAL AssignTimestampHandler(self, ts, msg) ==
     /\ \/ /\ \E prev \in PreviousMsgs[self]: CONFLICTR(msg, prev)
           /\ K' = [K EXCEPT ![self] = K[self] + 1]
           /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![self] = {msg}]
        \/ /\ \A prev \in PreviousMsgs[self]: ~CONFLICTR(msg, prev)
           /\ K' = [K EXCEPT ![self] = K[self]]
           /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![self] = PreviousMsgs[self] \cup {msg}]
-    /\ LET
-        built == CreateMessage(msg, K'[self]) | [s |-> msg.s ]
-        voted == built | [ o |-> self ]
-        IN
-        /\ Pending' = [Pending EXCEPT ![self] = Pending[self] \cup {built}]
-        /\ QuasiReliable!SendMap(LAMBDA dest, S: SendOriginatorAndRemoveLocal(self, dest, <<"S1", voted>>, <<"S0", msg>>, S))
-        /\ UNCHANGED <<Delivering, Delivered, Votes>>
+    /\ Pending' = [Pending EXCEPT ![self] = Pending[self] \cup {<<K'[self], msg>>}]
+    /\ QuasiReliable!SendMap(LAMBDA dest, S: SendOriginatorAndRemoveLocal(self, dest, <<"S1", K'[self], msg, self>>, <<"S0", ts, msg>>, S))
+    /\ UNCHANGED <<Delivering, Delivered, Votes>>
 
-LOCAL ComputeSeqNumberHandler(self, msg) ==
+LOCAL ComputeSeqNumberHandler(self, ts, msg, origin) ==
     /\ LET
-        votedTs == {<<m.o, m.ts>> : m \in {x \in Votes[self] \cup {msg}: x.id = msg.id}}
+        vote == <<msg.id, origin, ts>>
+        election == {v \in (Votes[self] \cup {vote}) : v[1] = msg.id}
+        elected == Max({x[3] : x \in election})
        IN
-        /\ \/ /\ Cardinality(votedTs) = Cardinality(msg.d)
-              /\ LET
-                    curr == CreateMessage(msg, Max({x[2] : x \in votedTs}))
-                 IN
-                  /\ Votes' = [Votes EXCEPT ![self] = {x \in Votes[self] : x.id /= msg.id}]
-                  /\ QuasiReliable!SendMap(LAMBDA dest, S: SendAllRemoveLocal(<<"S2", curr>>, <<"S1", msg>>, S))
-           \/ /\ Cardinality(votedTs) < Cardinality(msg.d)
-              /\ Votes' = [Votes EXCEPT ![self] = Votes[self] \cup {msg}]
-              /\ QuasiReliable!Consume(1, self, <<"S1", msg>>)
+        /\ \/ /\ Cardinality(election) = Cardinality(msg.d)
+              /\ Votes' = [Votes EXCEPT ![self] = {x \in Votes[self] : x[1] /= msg.id}]
+              /\ QuasiReliable!SendMap(LAMBDA dest, S: SendAllRemoveLocal(<<"S2", elected, msg>>, <<"S1", ts, msg>>, S))
+           \/ /\ Cardinality(election) < Cardinality(msg.d)
+              /\ Votes' = [Votes EXCEPT ![self] = Votes[self] \cup {vote}]
+              /\ QuasiReliable!Consume(1, self, <<"S1", ts, msg, origin>>)
         /\ UNCHANGED <<K, PreviousMsgs, Pending, Delivering, Delivered>>
 
-LOCAL AssignSeqNumberHandler(self, m1, m2) ==
-    /\ \/ /\ m2.ts > K[self]
-          /\ \/ /\ \E prev \in PreviousMsgs[self]: CONFLICTR(m2, prev)
-                /\ K' = [K EXCEPT ![self] = m2.ts + 1]
+LOCAL AssignSeqNumberHandler(self, ts, msg) ==
+    /\ \/ /\ ts > K[self]
+          /\ \/ /\ \E prev \in PreviousMsgs[self]: CONFLICTR(msg, prev)
+                /\ K' = [K EXCEPT ![self] = ts + 1]
                 /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![self] = {}]
-             \/ /\ \A prev \in PreviousMsgs[self]: CONFLICTR(m2, prev)
-                /\ K' = [K EXCEPT ![self] = m2.ts]
+             \/ /\ \A prev \in PreviousMsgs[self]: CONFLICTR(msg, prev)
+                /\ K' = [K EXCEPT ![self] = ts]
                 /\ UNCHANGED PreviousMsgs
-       \/ /\ m2.ts <= K[self]
+       \/ /\ ts <= K[self]
           /\ UNCHANGED <<K, PreviousMsgs>>
-    /\ Pending' = [Pending EXCEPT ![self] = @ \ {m1}]
-    /\ Delivering' = [Delivering EXCEPT ![self] = Delivering[self] \cup {m2}]
+    /\ Delivering' = [Delivering EXCEPT ![self] = Delivering[self] \cup {<<ts, msg>>}]
     /\ UNCHANGED <<Votes, Delivered>>
 
 (***************************************************************************)
@@ -124,7 +120,8 @@ LOCAL AssignSeqNumberHandler(self, m1, m2) ==
 AssignTimestamp(self) ==
     \* We delegate to the lambda to handle the message while filtering for
     \* the correct state.
-    /\ QuasiReliable!Receive(1, self, LAMBDA m: m[1] = "S0" /\ AssignTimestampHandler(self, m[2]))
+    /\ QuasiReliable!Receive(1, self,
+        LAMBDA t: t[1] = "S0" /\ AssignTimestampHandler(self, t[2], t[3]))
 
 (***************************************************************************)
 (*                                                                         *)
@@ -140,7 +137,10 @@ ComputeSeqNumber(self) ==
     \* We delegate to the lambda handler to effectively execute the procedure.
     \* Here we verify that the message is on state S2 and the current process
     \* is the initiator.
-    /\ QuasiReliable!Receive(1, self, LAMBDA m: m[1] = "S1" /\ m[2].s = self /\ ComputeSeqNumberHandler(self, m[2]))
+    /\ QuasiReliable!Receive(1, self,
+        LAMBDA t: t[1] = "S1"
+            /\ t[3].o = self
+            /\ ComputeSeqNumberHandler(self, t[2], t[3], t[4]))
 
 (***************************************************************************)
 (*                                                                         *)
@@ -160,15 +160,18 @@ AssignSeqNumber(self) ==
     \* is automatically consumed after the lambda execution. In this one we
     \* only filter the messages.
     /\ QuasiReliable!ReceiveAndConsume(1, self,
-        LAMBDA m:
-            /\ m[1] = "S2"
-            /\ \E o \in Pending[self]: m[2].id = o.id
-                /\ AssignSeqNumberHandler(self, o, m[2]))
+        LAMBDA t:
+            /\ t[1] = "S2"
+            /\ \E <<ts, m>> \in Pending[self]: t[3].id = m.id
+                /\ AssignSeqNumberHandler(self, t[2], t[3])
+                \* We remove the message here to avoid too many arguments
+                \* in the procedure invocation.
+                /\ Pending' = [Pending EXCEPT ![self] = @ \ {<<ts, m>>}])
 
 (***************************************************************************)
 (*                                                                         *)
-(*    Responsible for orderly delivery of messages. The messages present   *)
-(* in the `Delivering` set with the smallest timestamp among others in the *)
+(*    Responsible for delivery of messages. The messages in the            *)
+(* `Delivering` set with the smallest timestamp among others in the        *)
 (* `Pending` joined with `Delivering` set. We can also deliver messages    *)
 (* that commute with all others, the generalized behavior in action.       *)
 (*                                                                         *)
@@ -176,44 +179,47 @@ AssignSeqNumber(self) ==
 (* from the others. To store the instant of delivery, we insert delivered  *)
 (* messages with the following format:                                     *)
 (*                                                                         *)
-(*                     <<Len(Delivered), {Message}>>                       *)
+(*                           <<Nat, Message>>                              *)
 (*                                                                         *)
 (*    Using this model, we know the message delivery order for all         *)
 (* processes.                                                              *)
 (*                                                                         *)
 (***************************************************************************)
 DoDeliver(self) ==
-    \E m \in Delivering[self]:
-        /\ \A n \in (Delivering[self] \cup Pending[self]) \ {m}: StrictlySmaller(m, n) \/ ~CONFLICTR(m, n)
+    \E <<ts_1, m_1>> \in Delivering[self]:
+        /\ \A <<ts_2, m_2>> \in (Delivering[self] \cup Pending[self]) \ {<<ts_1, m_1>>}:
+            \/ ~CONFLICTR(m_1, m_2)
+            \/ ts_1 < ts_2 \/ (m_1.id < m_2.id /\ ts_1 = ts_2)
         /\ LET
             T == Delivering[self] \cup Pending[self]
-            G == {x \in Delivering[self]: \A y \in T \ {x}: ~CONFLICTR(x, y)}
-            F == {m} \cup G
-            index == Cardinality(Delivered[self])
+            G == {t_i \in Delivering[self]: \A t_j \in T \ {t_i}: ~CONFLICTR(t_i[2], t_j[2])}
+            F == {m_1} \cup {t[2] : t \in G}
            IN
-            /\ Delivering' = [Delivering EXCEPT ![self] = @ \ F]
-            /\ Delivered' = [Delivered EXCEPT ![self] = Delivered[self] \cup AppendEnumerating(index, F)]
-            \*/\ Delivered' = [Delivered EXCEPT ![self] = Delivered[self] \cup {<<index, F>>}]
+            /\ Delivering' = [Delivering EXCEPT ![self] = @ \ (G \cup {<<ts_1, m_1>>})]
+            /\ Delivered' = [Delivered EXCEPT ![self] = Delivered[self] \cup AppendEnumerating(Cardinality(Delivered[self]), F)]
             /\ UNCHANGED <<QuasiReliableChannel, Votes, Pending, PreviousMsgs, K>>
 
 ------------------------------------------------------------------
 
 (***************************************************************************)
 (*                                                                         *)
-(*     Responsible for initializing gloabal variables used on the system.  *)
-(* All variables that are defined by the protocol is a mapping from the    *)
-(* node id to the corresponding process set.                               *)
+(*     Responsible for initializing global variables used on the system.   *)
+(* All variables necessary by the protocol are a mapping from the node id  *)
+(* to the corresponding process set.                                       *)
 (*                                                                         *)
 (*     The `message` is also a structure, with the following format:       *)
 (*                                                                         *)
-(*          [ id |-> Nat, ts |-> Nat, d |-> Nodes, s |-> Node ]            *)
+(*               [ id |-> Nat, d |-> Nodes, o |-> Node ]                   *)
 (*                                                                         *)
-(* The `d` does not need to be the whole Nodes, only one of the possible   *)
-(* SUBSET Nodes. The keys representation is `id` the unique message id,    *)
-(* `ts` is the message timestamp/sequence number, `d` is the destination.  *)
-(* In some steps, a property may be added, for example the `s` property    *)
-(* that holds the initial source of the message or the property `o` that   *)
-(* is used when casting votes and is used to identiy the process id,       *)
+(* We have the properties: `id` is the messages' unique id, we use a       *)
+(* natural number to represent; `d` is the destination, it may be a        *)
+(* subset of the Nodes set; and `o` is the originator, the process that    *)
+(* started the execution of the algorithm. These properties are all static *)
+(* and never change.                                                       *)
+(*                                                                         *)
+(* The mutable values we transport outside the message structure. We do    *)
+(* this using the process communication channel, using a tuple to send the *)
+(* message along with the mutable values.                                  *)
 (*                                                                         *)
 (***************************************************************************)
 LOCAL InitProtocol ==
@@ -260,14 +266,12 @@ ASSUME
 ------------------------------------------------------------------
 
 WasDelivered(p, m) ==
-    /\ \E <<idx, n>> \in Delivered[p]:
-        \* \E n \in msgs:
-            n.id = m.id
+    /\ \E <<idx, n>> \in Delivered[p]: n.id = m.id
 
 DeliveredInstant(p, m) ==
     (CHOOSE <<index, n>> \in Delivered[p]: m.id = n.id)[1]
 
 FilterDeliveredMessages(p, m) ==
-    {<<idx, msgs>> \in Delivered[p] : \E n \in msgs : n.id = m.id}
+    {<<idx, n>> \in Delivered[p] : n.id = m.id}
 
 ==================================================================
