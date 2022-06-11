@@ -59,14 +59,19 @@ vars == <<
 
 ------------------------------------------------------------------
 
+(***************************************************************************)
+(*                                                                         *)
+(* Helper to send messages. In a single operation we consume the message   *)
+(* from our local network and send a request to the algorithm initiator.   *)
+(* Is not possible to execute multiple operations in a single step on the  *)
+(* same set. That is, we can not consume and send in different operations. *)
+(*                                                                         *)
+(***************************************************************************)
 LOCAL SendOriginatorAndRemoveLocal(self, dest, curr, prev, S) ==
     IF self = dest /\ prev[3].o = self THEN (S \ {prev}) \cup {curr}
     ELSE IF prev[3].o = dest THEN S \cup {curr}
     ELSE IF self = dest THEN S \ {prev}
     ELSE S
-
-LOCAL SendAllRemoveLocal(curr, prev, S) ==
-    (S \ {prev}) \cup {curr}
 
 ------------------------------------------------------------------
 
@@ -89,7 +94,7 @@ LOCAL ComputeSeqNumberHandler(self, ts, msg, origin) ==
        IN
         /\ \/ /\ Cardinality(election) = Cardinality(msg.d)
               /\ Votes' = [Votes EXCEPT ![self] = {x \in Votes[self] : x[1] /= msg.id}]
-              /\ QuasiReliable!SendMap(LAMBDA dest, S: SendAllRemoveLocal(<<"S2", elected, msg>>, <<"S1", ts, msg>>, S))
+              /\ QuasiReliable!SendMap(LAMBDA dest, S: (S \ {<<"S1", ts, msg>>}) \cup {<<"S2", elected, msg>>})
            \/ /\ Cardinality(election) < Cardinality(msg.d)
               /\ Votes' = [Votes EXCEPT ![self] = Votes[self] \cup {vote}]
               /\ QuasiReliable!Consume(1, self, <<"S1", ts, msg, origin>>)
@@ -108,10 +113,12 @@ LOCAL AssignSeqNumberHandler(self, ts, msg) ==
     /\ Delivering' = [Delivering EXCEPT ![self] = Delivering[self] \cup {<<ts, msg>>}]
     /\ UNCHANGED <<Votes, Delivered>>
 
+------------------------------------------------------------------
+
 (***************************************************************************)
 (*                                                                         *)
 (*     This procedure executes after an initiator GM-Cast a message m to   *)
-(* m.d. All processes in m.d do the same steps after receiving m, assing   *)
+(* m.d. All processes in m.d do the same thing after receiving m, assing   *)
 (* the local clock to the message timestamp, inserting the message with    *)
 (* the timestamp to the process `Pending` set, and sending it to the       *)
 (* initiator to choose the timestamp.                                      *)
@@ -260,18 +267,32 @@ SpecFair == Spec /\ WF_vars(\E self \in Processes: Step(self))
 
 \* Verify the input values.
 ASSUME
-    \* Verify that `NPROCESS` is a natural number greater than 0.
+    \* Verify that `NPROCESSES` is a natural number greater than 0.
     /\ NPROCESSES \in (Nat \ {0})
+
+    \* The messages in the protocol must be finite.
     /\ IsFiniteSet(INITIAL_MESSAGES)
 ------------------------------------------------------------------
 
+\* Helper functions to aid when checking the algorithm properties.
+
 WasDelivered(p, m) ==
+    (***********************************************************************)
+    (* Verifies if the given process `p` delivered message `m`.            *)
+    (***********************************************************************)
     /\ \E <<idx, n>> \in Delivered[p]: n.id = m.id
 
 DeliveredInstant(p, m) ==
+    (***********************************************************************)
+    (* Retrieve the instant the given process `p` delivered message `m`.   *)
+    (***********************************************************************)
     (CHOOSE <<index, n>> \in Delivered[p]: m.id = n.id)[1]
 
 FilterDeliveredMessages(p, m) ==
+    (***********************************************************************)
+    (* Retrieve the set of messages with the same id as message `m`        *)
+    (* delivered by the given process `p`.                                 *)
+    (***********************************************************************)
     {<<idx, n>> \in Delivered[p] : n.id = m.id}
 
 ==================================================================
