@@ -17,17 +17,17 @@ vars == <<MemoryBuffer>>
 
 -------------------------------------------------------
 
-LOCAL Filter(s, op(_)) ==
-          {x \in s: op(x)}
+LOCAL InsertOrUpdate(S, t) ==
+    {<<msg, ignore1, ignore2>> \in S: msg.id /= t[1].id} \cup {t}
 
-LOCAL InsertOrUpdate(s, m) ==
-          Filter(s, LAMBDA n: n.id /= m.id) \cup {m}
-
-Insert(g, p, m) ==
-    /\ MemoryBuffer' = [MemoryBuffer EXCEPT ![g][p] = InsertOrUpdate(MemoryBuffer[g][p], m)]
+Insert(g, p, t) ==
+    /\ MemoryBuffer' = [MemoryBuffer EXCEPT ![g][p] = InsertOrUpdate(MemoryBuffer[g][p], t)]
 
 Contains(g, p, Fn(_)) ==
-    \E m \in MemoryBuffer[g][p]: Fn(m)
+    \E t \in MemoryBuffer[g][p]: Fn(t)
+
+ForAllFilter(g, p, Fn(_, _)) ==
+    {t_1 \in MemoryBuffer[g][p]: \A t_2 \in (MemoryBuffer[g][p] \ {t_1}): Fn(t_1, t_2)}
 
 Remove(g, p, S) ==
     /\ MemoryBuffer' = [MemoryBuffer EXCEPT ![g][p] = @ \ S]
