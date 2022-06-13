@@ -15,30 +15,50 @@ LOCAL Processes == {p : p \in 1 .. NPROCESSES}
 LOCAL Groups == {g : g \in 1 .. NGROUPS}
 
 -----------------------------------------------------------------
+\* The module containing the Atomic Broadcast primitive.
 VARIABLE AtomicBroadcastBuffer
-AtomicBroadcast == INSTANCE AtomicBroadcast
+AtomicBroadcast == INSTANCE AtomicBroadcast WITH
+    INITIAL_MESSAGES <- [g \in Groups |-> <<>>]
 
+\* The module containing the Reliable Multicast primitive.
 VARIABLE ReliableMulticastBuffer
 ReliableMulticast == INSTANCE ReliableMulticast
 
+\* The module containing the quasi reliable channel.
 VARIABLE QuasiReliableChannel
 QuasiReliable == INSTANCE QuasiReliable WITH
     INITIAL_MESSAGES <- {}
 
+\* The algorithm's `Mem` structure. We use a separate module.
 VARIABLE MemoryBuffer
 Memory == INSTANCE Memory
 
 -----------------------------------------------------------------
 
 VARIABLES
+    \* The process local clock.
     K,
+
+    \* The set contains previous messages.
+    \* We use this with the CONFLICTR to verify conflicting messages.
     PreviousMsgs,
+
+    \* The set of delivered messages.
+    \* This set is not an algorithm requirement. We use this to help check the
+    \* algorithm's properties.
     Delivered,
+
+    \* A set contains the processes' votes for the message's timestamp.
+    \* This structure is implicit in the algorithm.
     Votes
 
 vars == <<K, MemoryBuffer, PreviousMsgs, Delivered, Votes,
           AtomicBroadcastBuffer, ReliableMulticastBuffer, QuasiReliableChannel>>
 -----------------------------------------------------------------
+
+\* These are the handlers. The actual algorithm resides here, the lambdas
+\* only assert the guarding predicates before calling the handler.
+
 LOCAL EnqueueMessageHandler(g, p, m) ==
     /\ AtomicBroadcast!ABroadcast(g, <<m, 0, 0>>)
     /\ Memory!Insert(g, p, <<m, 0, 0>>)
@@ -89,15 +109,64 @@ LOCAL DoDeliverHandler(g, p, m_1, ts_1) ==
         /\ Delivered' = [Delivered EXCEPT ![g][p] = Delivered[g][p] \cup AppendEnumerating(Cardinality(Delivered[g][p]), F)]
         /\ UNCHANGED <<QuasiReliableChannel, ReliableMulticastBuffer, AtomicBroadcastBuffer, Votes, PreviousMsgs, K>>
 
+-----------------------------------------------------------------
+(***************************************************************************)
+(*                                                                         *)
+(* Process P executes this procedure when message M is received by the     *)
+(* Reliable Multicast primitive. P stores M in memory, associating it with *)
+(* a timestamp 0 and state S0. Finally, P broadcasts M to the local group  *)
+(* using the Atomic Broadcast primitive.                                   *)
+(*                                                                         *)
+(***************************************************************************)
 EnqueueMessage(g, p) ==
     /\ ReliableMulticast!RMDelivered(g, p, LAMBDA m: EnqueueMessageHandler(g, p, m))
 
+(***************************************************************************)
+(*                                                                         *)
+(* Executes when process P receives a message M from the Atomic Broadcast  *)
+(* primitive and M is in P's memory. This procedure is extensive, with     *)
+(* multiple branches based on the message's state and destination. Let's   *)
+(* split the explanation.                                                  *)
+(*                                                                         *)
+(* When M's state is S0, we first verify if M conflicts with messages in   *)
+(* the PreviousMsgs set. If a conflict exists, we increase P's local clock *)
+(* by one and clear the PreviousMsgs set.                                  *)
+(*                                                                         *)
+(* When message M has a single group as the destination, it is already in  *)
+(* its destination and is synchronized because we received M from Atomic   *)
+(* Broadcast primitive. P stores M in memory with state S3 and timestamp   *)
+(* with the current clock value.                                           *)
+(*                                                                         *)
+(* When M includes multiple groups in the destination, the participants    *)
+(* must agree on the final timestamp. When M's state is S0, P will send    *)
+(* its timestamp proposition to all other participants, which is the       *)
+(* current clock value, and update M's state to S1 and timestamp. If M's   *)
+(* state is S2, we are synchronizing the local group, meaning we may need  *)
+(* to leap the clock to the M's received timestamp and then set M to state *)
+(* S3.                                                                     *)
+(*                                                                         *)
+(***************************************************************************)
 ComputeGroupSeqNumber(g, p) ==
     /\ AtomicBroadcast!ABDeliver(g, p,
         LAMBDA t:
             /\ Memory!Contains(g, p, LAMBDA memory: t[1].id = memory[1].id /\ (memory[2] = 0 \/ memory[2] = 2))
             /\ ComputeGroupSeqNumberHandler(g, p, t[1], t[2], t[3]))
 
+(***************************************************************************)
+(*                                                                         *)
+(* After exchanging the votes between groups, processes must select the    *)
+(* final timestamp. When we have one proposal from each group in message   *)
+(* M's destination, the highest vote is the decided timestamp. If P's      *)
+(* local clock is smaller than the value, we broadcast the message to the  *)
+(* local group with state S2 and save it in memory. Otherwise, we update   *)
+(* the in-memory to state S3.                                              *)
+(*                                                                         *)
+(* We only execute the procedure once we have proposals from all           *)
+(* participating groups. Since we receive messages from the quasi-reliable *)
+(* channel, we keep the votes in the Votes structure. This structure is    *)
+(* implicit in the algorithm.                                              *)
+(*                                                                         *)
+(***************************************************************************)
 GatherGroupsTimestamp(g, p) ==
     /\ QuasiReliable!ReceiveAndConsume(g, p,
         LAMBDA t:
@@ -108,6 +177,7 @@ GatherGroupsTimestamp(g, p) ==
                 election == {v \in (Votes[g][p] \cup {vote}): v[1] = msg.id}
                 elected == Max({x[3] : x \in election})
                IN
+                \* We only execute the procedure when we have proposals from all groups.
                 /\ \/ /\ Cardinality(election) = Cardinality(msg.d) /\ Memory!Contains(g, p, LAMBDA memory: msg.id = memory[1].id)
                       /\ GatherGroupsTimestampHandler(g, p, msg, t[3], elected)
                       /\ Votes' = [Votes EXCEPT ![g][p] = {x \in Votes[g][p]: x[1] /= msg.id}]
@@ -116,7 +186,19 @@ GatherGroupsTimestamp(g, p) ==
                       /\ UNCHANGED <<MemoryBuffer, K, PreviousMsgs, AtomicBroadcastBuffer>>
                 /\ UNCHANGED <<Delivered, ReliableMulticastBuffer>>)
 
+(***************************************************************************)
+(*                                                                         *)
+(* When messages are to deliver, we select them and call the delivery      *)
+(* primitive. Ready means they are in state S3, and the message either     *)
+(* does not conflict with any other in the memory structure or is smaller  *)
+(* than all others. Once a message is ready, we also collect the messages  *)
+(* that do not conflict with any other for delivery in a single batch.     *)
+(*                                                                         *)
+(***************************************************************************)
 DoDeliver(g, p) ==
+    \* We are accessing the buffer directly, and not through the `Memory` instance.
+    \* We do this because is easier and because we are only reading the values here.
+    \* Any changes we do through the instance.
     \E <<m_1, state, ts_1>> \in MemoryBuffer[g][p]:
         /\ state = 3
         /\ \A <<m_2, ignore, ts_2>> \in (MemoryBuffer[g][p] \ {<<m_1, state, ts_1>>}):
@@ -173,13 +255,26 @@ ASSUME
 
 -----------------------------------------------------------------
 
+\* Helper functions to aid when checking the algorithm properties.
+
 WasDelivered(g, p, m) ==
+    (*************************************************************************)
+    (* Verifies if the given process `p` in group `g` delivered message `m`. *)
+    (*************************************************************************)
     /\ \E <<idx, n>> \in Delivered[g][p]: n.id = m.id
 
 FilterDeliveredMessages(g, p, m) ==
+    (***********************************************************************)
+    (* Retrieve the set of messages with the same id as message `m`        *)
+    (* delivered by the given process `p` in group `g`.                    *)
+    (***********************************************************************)
     {<<idx, n>> \in Delivered[g][p]: n.id = m.id}
 
 DeliveredInstant(g, p, m) ==
+    (***********************************************************************)
+    (* Retrieve the instant the given process `p` in group `g` delivered   *)
+    (* message `m`.                                                        *)
+    (***********************************************************************)
     (CHOOSE <<t, n>> \in Delivered[g][p]: n.id = m.id)[1]
 
 =================================================================

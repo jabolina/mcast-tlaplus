@@ -7,6 +7,7 @@ LOCAL INSTANCE Sequences
 
 CONSTANT NPROCESSES
 CONSTANT NGROUPS
+CONSTANT INITIAL_MESSAGES
 
 ---------------------------------------------------------------------
 
@@ -44,7 +45,7 @@ ABDeliver(g, p, Fn(_)) ==
 ---------------------------------------------------------------------
 
 Init ==
-    /\ AtomicBroadcastBuffer = [g \in 1 .. NGROUPS |-> [p \in 1 .. NPROCESSES |-> <<>>]]
+    /\ AtomicBroadcastBuffer = [g \in 1 .. NGROUPS |-> [p \in 1 .. NPROCESSES |-> INITIAL_MESSAGES[g]]]
 
 Next ==
     \/ UNCHANGED vars
