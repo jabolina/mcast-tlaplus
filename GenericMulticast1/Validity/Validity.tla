@@ -12,11 +12,8 @@ LOCAL Processes == 1 .. NPROCESSES
 LOCAL Groups == 1 .. NGROUPS
 LOCAL ProcessesInGroup == [g \in Groups |-> Processes]
 
-LOCAL ChooseGroup == CHOOSE x \in Groups : TRUE
-LOCAL ChooseProcess == CHOOSE x \in Processes : TRUE
-LOCAL RetrieveOriginator == <<ChooseGroup, ChooseProcess>>
-
-LOCAL AllMessages == {[id |-> m, d |-> Groups, o |-> RetrieveOriginator]: m \in 1 .. NMESSAGES}
+LOCAL AllMessages == CreateMessages(NMESSAGES, Groups, Processes)
+LOCAL MessagesCombinations == CreatePossibleMessages(AllMessages)
 ----------------------------------------------------------
 
 VARIABLES
@@ -26,10 +23,9 @@ VARIABLES
     Votes,
     MemoryBuffer,
     QuasiReliableChannel,
-    ReliableMulticastBuffer,
     AtomicBroadcastBuffer
 Algorithm == INSTANCE GenericMulticast1 WITH
-    INITIAL_MESSAGES <- AllMessages
+    INITIAL_MESSAGES <- [g \in Groups |-> MessagesToTuple(MessagesCombinations[(g % NMESSAGES) + 1])]
 
 vars == <<
     K,
@@ -38,7 +34,6 @@ vars == <<
     Votes,
     MemoryBuffer,
     QuasiReliableChannel,
-    ReliableMulticastBuffer,
     AtomicBroadcastBuffer
 >>
 ----------------------------------------------------------

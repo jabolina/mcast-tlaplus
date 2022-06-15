@@ -17,12 +17,7 @@ LOCAL Groups == {g : g \in 1 .. NGROUPS}
 -----------------------------------------------------------------
 \* The module containing the Atomic Broadcast primitive.
 VARIABLE AtomicBroadcastBuffer
-AtomicBroadcast == INSTANCE AtomicBroadcast WITH
-    INITIAL_MESSAGES <- [g \in Groups |-> <<>>]
-
-\* The module containing the Reliable Multicast primitive.
-VARIABLE ReliableMulticastBuffer
-ReliableMulticast == INSTANCE ReliableMulticast
+AtomicBroadcast == INSTANCE AtomicBroadcast
 
 \* The module containing the quasi reliable channel.
 VARIABLE QuasiReliableChannel
@@ -53,16 +48,11 @@ VARIABLES
     Votes
 
 vars == <<K, MemoryBuffer, PreviousMsgs, Delivered, Votes,
-          AtomicBroadcastBuffer, ReliableMulticastBuffer, QuasiReliableChannel>>
+          AtomicBroadcastBuffer, QuasiReliableChannel>>
 -----------------------------------------------------------------
 
 \* These are the handlers. The actual algorithm resides here, the lambdas
 \* only assert the guarding predicates before calling the handler.
-
-LOCAL EnqueueMessageHandler(g, p, m) ==
-    /\ AtomicBroadcast!ABroadcast(g, <<m, 0, 0>>)
-    /\ Memory!Insert(g, p, <<m, 0, 0>>)
-    /\ UNCHANGED <<K, PreviousMsgs, Delivered, Votes, QuasiReliableChannel>>
 
 LOCAL ComputeGroupSeqNumberHandler(g, p, msg, state, ts) ==
     /\ \/ /\ state = 0
@@ -88,7 +78,7 @@ LOCAL ComputeGroupSeqNumberHandler(g, p, msg, state, ts) ==
        \/ /\ Cardinality(msg.d) = 1
           /\ Memory!Insert(g, p, <<msg, 3, K'[g][p]>>)
           /\ UNCHANGED QuasiReliableChannel
-    /\ UNCHANGED <<Delivered, ReliableMulticastBuffer, Votes>>
+    /\ UNCHANGED <<Delivered, Votes>>
 
 LOCAL GatherGroupsTimestampHandler(g, p, msg, ts, tsf) ==
     /\ \/ /\ ts >= tsf \/ \A prev \in PreviousMsgs[g][p]: ~CONFLICTR(msg, prev)
@@ -107,19 +97,9 @@ LOCAL DoDeliverHandler(g, p, m_1, ts_1) ==
        IN
         /\ Memory!Remove(g, p, D)
         /\ Delivered' = [Delivered EXCEPT ![g][p] = Delivered[g][p] \cup AppendEnumerating(Cardinality(Delivered[g][p]), F)]
-        /\ UNCHANGED <<QuasiReliableChannel, ReliableMulticastBuffer, AtomicBroadcastBuffer, Votes, PreviousMsgs, K>>
+        /\ UNCHANGED <<QuasiReliableChannel, AtomicBroadcastBuffer, Votes, PreviousMsgs, K>>
 
 -----------------------------------------------------------------
-(***************************************************************************)
-(*                                                                         *)
-(* Process P executes this procedure when message M is received by the     *)
-(* Reliable Multicast primitive. P stores M in memory, associating it with *)
-(* a timestamp 0 and state S0. Finally, P broadcasts M to the local group  *)
-(* using the Atomic Broadcast primitive.                                   *)
-(*                                                                         *)
-(***************************************************************************)
-EnqueueMessage(g, p) ==
-    /\ ReliableMulticast!RMDelivered(g, p, LAMBDA m: EnqueueMessageHandler(g, p, m))
 
 (***************************************************************************)
 (*                                                                         *)
@@ -149,7 +129,6 @@ EnqueueMessage(g, p) ==
 ComputeGroupSeqNumber(g, p) ==
     /\ AtomicBroadcast!ABDeliver(g, p,
         LAMBDA t:
-            /\ Memory!Contains(g, p, LAMBDA memory: t[1].id = memory[1].id /\ (memory[2] = 0 \/ memory[2] = 2))
             /\ ComputeGroupSeqNumberHandler(g, p, t[1], t[2], t[3]))
 
 (***************************************************************************)
@@ -184,7 +163,7 @@ GatherGroupsTimestamp(g, p) ==
                    \/ /\ Cardinality(election) < Cardinality(msg.d)
                       /\ Votes' = [Votes EXCEPT ![g][p] = Votes[g][p] \cup {vote}]
                       /\ UNCHANGED <<MemoryBuffer, K, PreviousMsgs, AtomicBroadcastBuffer>>
-                /\ UNCHANGED <<Delivered, ReliableMulticastBuffer>>)
+                /\ UNCHANGED <<Delivered>>)
 
 (***************************************************************************)
 (*                                                                         *)
@@ -211,7 +190,7 @@ DoDeliver(g, p) ==
            IN
             /\ Memory!Remove(g, p, D)
             /\ Delivered' = [Delivered EXCEPT ![g][p] = Delivered[g][p] \cup AppendEnumerating(Cardinality(Delivered[g][p]), F)]
-            /\ UNCHANGED <<QuasiReliableChannel, ReliableMulticastBuffer, AtomicBroadcastBuffer, Votes, PreviousMsgs, K>>
+            /\ UNCHANGED <<QuasiReliableChannel, AtomicBroadcastBuffer, Votes, PreviousMsgs, K>>
 -----------------------------------------------------------------
 
 LOCAL InitProtocol ==
@@ -223,14 +202,12 @@ LOCAL InitProtocol ==
 
 LOCAL InitCommunication ==
     /\ AtomicBroadcast!Init
-    /\ ReliableMulticast!Init
     /\ QuasiReliable!Init
 
 Init == InitProtocol /\ InitCommunication
 
 -----------------------------------------------------------------
 Step(g, p) ==
-    \/ EnqueueMessage(g, p)
     \/ ComputeGroupSeqNumber(g, p)
     \/ GatherGroupsTimestamp(g, p)
     \/ DoDeliver(g, p)
