@@ -29,7 +29,6 @@ VARIABLES
     Votes,
     MemoryBuffer,
     QuasiReliableChannel,
-    ReliableMulticastBuffer,
     AtomicBroadcastBuffer
 Algorithm == INSTANCE GenericMulticast1 WITH
     INITIAL_MESSAGES <- SentMessage
@@ -41,7 +40,6 @@ vars == <<
     Votes,
     MemoryBuffer,
     QuasiReliableChannel,
-    ReliableMulticastBuffer,
     AtomicBroadcastBuffer
 >>
 
