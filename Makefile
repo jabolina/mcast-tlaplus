@@ -14,9 +14,6 @@ m0-integrity:
 m0-partial-order:
 	@$(MAKE) -C GenericMulticast0 partial-order
 
-m0-strictness:
-	@$(MAKE) -C GenericMulticast0 strictness
-
 m0-validity:
 	@$(MAKE) -C GenericMulticast0 validity
 

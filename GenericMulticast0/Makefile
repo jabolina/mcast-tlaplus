@@ -15,9 +15,6 @@ partial-order:
 strictness:
 	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) Strictness
 
-strictness:
-	sh $(ROOT_FOLDER)/tlc.sh $(SPEC_FOLDER) Strictness
-
 validity:
 	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) Validity
 
