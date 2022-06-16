@@ -14,14 +14,23 @@ m0-integrity:
 m0-partial-order:
 	@$(MAKE) -C GenericMulticast0 partial-order
 
-m0-strictness:
-	@$(MAKE) -C GenericMulticast0 strictness
-
 m0-validity:
 	@$(MAKE) -C GenericMulticast0 validity
 
-mcast1:
-	@$(MAKE) -C GenericMulticast1
+m1-agreement:
+	@$(MAKE) -C GenericMulticast1 agreement
+
+m1-collision:
+	@$(MAKE) -C GenericMulticast1 collision
+
+m1-integrity:
+	@$(MAKE) -C GenericMulticast1 integrity
+
+m1-partial-order:
+	@$(MAKE) -C GenericMulticast1 partial-order
+
+m1-validity:
+	@$(MAKE) -C GenericMulticast1 validity
 
 prune:
 	$$0 $(ROOT_FOLDER)/bin/prune.sh
