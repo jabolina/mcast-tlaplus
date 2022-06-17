@@ -32,5 +32,20 @@ m1-partial-order:
 m1-validity:
 	@$(MAKE) -C GenericMulticast1 validity
 
+m2-agreement:
+	@$(MAKE) -C GenericMulticast2 agreement
+
+m2-collision:
+	@$(MAKE) -C GenericMulticast2 collision
+
+m2-integrity:
+	@$(MAKE) -C GenericMulticast2 integrity
+
+m2-partial-order:
+	@$(MAKE) -C GenericMulticast2 partial-order
+
+m2-validity:
+	@$(MAKE) -C GenericMulticast2 validity
+
 prune:
 	$$0 $(ROOT_FOLDER)/bin/prune.sh

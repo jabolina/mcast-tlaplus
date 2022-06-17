@@ -119,6 +119,9 @@ CreatePossibleMessages(S) ==
 MessagesToTuple(F) ==
     [x \in DOMAIN F |-> <<F[x], 0, 0>>]
 
+MessagesToTupleSet(F) ==
+    [x \in DOMAIN F |-> {<<F[x], 0, 0>>}]
+
 --------------------------------------------------------
 
 AppendEnumerating(base, E) ==

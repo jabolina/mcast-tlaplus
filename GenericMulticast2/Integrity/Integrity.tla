@@ -1,5 +1,5 @@
 -------------------- MODULE Integrity --------------------
-EXTENDS Naturals, FiniteSets, Commons, Sequences
+EXTENDS Naturals, FiniteSets, Sequences, Commons
 
 CONSTANT NPROCESSES
 CONSTANT NGROUPS
@@ -27,9 +27,9 @@ VARIABLES
     Votes,
     MemoryBuffer,
     QuasiReliableChannel,
-    AtomicBroadcastBuffer
-Algorithm == INSTANCE GenericMulticast1 WITH
-    INITIAL_MESSAGES <- [g \in Groups |-> MessagesToTuple(CombinationsToSend[(g % NMESSAGES) + 1])]
+    GenericBroadcastBuffer
+Algorithm == INSTANCE GenericMulticast2 WITH
+    INITIAL_MESSAGES <- [g \in Groups |-> MessagesToTupleSet(CombinationsToSend[(g % NMESSAGES) + 1])]
 
 vars == <<
     K,
@@ -38,7 +38,7 @@ vars == <<
     Votes,
     MemoryBuffer,
     QuasiReliableChannel,
-    AtomicBroadcastBuffer
+    GenericBroadcastBuffer
 >>
 
 ----------------------------------------------------------
