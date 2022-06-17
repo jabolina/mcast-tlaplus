@@ -7,7 +7,12 @@ CONSTANT NMESSAGES
 CONSTANT CONFLICTR(_, _)
 
 ----------------------------------------------------------
-
+(************************************************************************************)
+(*                                                                                  *)
+(* This algorithm works in an environment with crash-stop failures, but we do not   *)
+(* model processes failing. The set of all processes contains all correct ones.     *)
+(*                                                                                  *)
+(************************************************************************************)
 LOCAL Processes == 1 .. NPROCESSES
 LOCAL Groups == 1 .. NGROUPS
 LOCAL ProcessesInGroup == [g \in Groups |-> Processes]
@@ -25,19 +30,16 @@ VARIABLES
     MemoryBuffer,
     QuasiReliableChannel,
     AtomicBroadcastBuffer
+
+(************************************************************************************)
+(*                                                                                  *)
+(* Initialize the instance for the Generic Multicast 1. The INITIAL_MESSAGES is a   *)
+(* sequence, totally ordered within a group, wherein the elements are tuples with   *)
+(* the message, state, and timestamp.                                               *)
+(*                                                                                  *)
+(************************************************************************************)
 Algorithm == INSTANCE GenericMulticast1 WITH
-    INITIAL_MESSAGES <- [g \in Groups |-> MessagesToTuple(MessagesCombinations[(g % NMESSAGES) + 1])]
-
-vars == <<
-    K,
-    PreviousMsgs,
-    Delivered,
-    Votes,
-    MemoryBuffer,
-    QuasiReliableChannel,
-    AtomicBroadcastBuffer
->>
-
+    INITIAL_MESSAGES <- [ g \in Groups |-> TotallyOrdered(MessagesCombinations[(g % NMESSAGES) + 1])]
 ----------------------------------------------------------
 
 Spec == Algorithm!Spec
@@ -46,23 +48,24 @@ Spec == Algorithm!Spec
 LOCAL BothDelivered(g, p1, p2, m1, m2) ==
     /\ Algorithm!WasDelivered(g, p1, m1) /\ Algorithm!WasDelivered(g, p1, m2)
     /\ Algorithm!WasDelivered(g, p2, m1) /\ Algorithm!WasDelivered(g, p2, m2)
+
 LOCAL LHS(g, p1, p2, m1, m2) ==
     /\ {p1, p2} \subseteq (m1.d \intersect m2.d)
     /\ CONFLICTR(m1, m2)
     /\ BothDelivered(g, p1, p2, m1, m2)
+
 LOCAL RHS(g, p1, p2, m1, m2) ==
-    /\ LET
-        pm == Algorithm!DeliveredInstant(g, p1, m1)
-        pn == Algorithm!DeliveredInstant(g, p1, m2)
-        qm == Algorithm!DeliveredInstant(g, p2, m1)
-        qn == Algorithm!DeliveredInstant(g, p2, m2)
-        IN
-         /\ (pm < pn) <=> (qm < qn)
-(*
-If a correct processes p1, p2 both deliver messages m1 and m2,
-m1 conflict with m2, and p1 and p2 are both in m1.d and m2.d,
-then p1 delivers m1 before m2, if, and only if, p2 deliver m1 before m2.
-*)
+    (Algorithm!DeliveredInstant(g, p1, m1) <
+        Algorithm!DeliveredInstant(g, p1, m2))
+            <=> (Algorithm!DeliveredInstant(g, p2, m1) <
+                    Algorithm!DeliveredInstant(g, p2, m2))
+
+(************************************************************************************)
+(*                                                                                  *)
+(* For every two messages, if they conflict, given a pair of processes, they are in *)
+(* the messages' destination, then both must deliver in the same order.             *)
+(*                                                                                  *)
+(************************************************************************************)
 PartialOrder ==
     []\A g \in Groups:
         \A p1, p2 \in ProcessesInGroup[g]:

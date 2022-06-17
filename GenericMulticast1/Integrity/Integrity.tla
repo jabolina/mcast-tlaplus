@@ -7,15 +7,28 @@ CONSTANT NMESSAGES
 CONSTANT CONFLICTR(_, _)
 
 ----------------------------------------------------------
-
+(************************************************************************************)
+(*                                                                                  *)
+(* This algorithm works in an environment with crash-stop failures, but we do not   *)
+(* model processes failing. The set of all processes contains all correct ones.     *)
+(*                                                                                  *)
+(************************************************************************************)
 LOCAL Processes == 1 .. NPROCESSES
 LOCAL Groups == 1 .. NGROUPS
 LOCAL ProcessesInGroup == [g \in Groups |-> Processes]
 
+(************************************************************************************)
+(*                                                                                  *)
+(* This property verifies that we only deliver sent messages. To assert this, we    *)
+(* create `NMESSAGES + 1' and do not include the additional one in the algorithm    *)
+(* execution, then check that the delivered ones are only the sent ones.            *)
+(*                                                                                  *)
+(************************************************************************************)
 LOCAL AcceptableMessageIds == {id : id \in 1 .. NMESSAGES}
 LOCAL AllMessages == CreateMessages(NMESSAGES + 1, Groups, Processes)
-LOCAL MessagesCombinations == CreatePossibleMessages(AllMessages)
 LOCAL SentMessage == {m \in AllMessages: m.id \in AcceptableMessageIds}
+
+LOCAL MessagesCombinations == CreatePossibleMessages(AllMessages)
 LOCAL CombinationsToSend == [i \in DOMAIN MessagesCombinations |-> SelectSeq(MessagesCombinations[i], LAMBDA m: m \in SentMessage)]
 
 ----------------------------------------------------------
@@ -28,30 +41,31 @@ VARIABLES
     MemoryBuffer,
     QuasiReliableChannel,
     AtomicBroadcastBuffer
+
+(************************************************************************************)
+(*                                                                                  *)
+(* Initialize the instance for the Generic Multicast 1. The INITIAL_MESSAGES is a   *)
+(* sequence, totally ordered within a group, wherein the elements are tuples with   *)
+(* the message, state, and timestamp.                                               *)
+(*                                                                                  *)
+(************************************************************************************)
 Algorithm == INSTANCE GenericMulticast1 WITH
-    INITIAL_MESSAGES <- [g \in Groups |-> MessagesToTuple(CombinationsToSend[(g % NMESSAGES) + 1])]
-
-vars == <<
-    K,
-    PreviousMsgs,
-    Delivered,
-    Votes,
-    MemoryBuffer,
-    QuasiReliableChannel,
-    AtomicBroadcastBuffer
->>
-
+    INITIAL_MESSAGES <- [ g \in Groups |-> TotallyOrdered(CombinationsToSend[(g % NMESSAGES) + 1])]
 ----------------------------------------------------------
 
+\* Weak fairness is necessary.
 Spec == Algorithm!SpecFair
 
 ----------------------------------------------------------
 
-(*
-for any message m in AllMessages, every correct process p in m.d
-deliver m at most once, and only if m was previously sent by some
-process p in Processes*)
-LOCAL DeliveredOnlyOnce(g, p, m) == Cardinality(Algorithm!FilterDeliveredMessages(g, p, m)) = 1
+LOCAL DeliveredOnlyOnce(g, p, m) ==
+    Cardinality(Algorithm!FilterDeliveredMessages(g, p, m)) = 1
+(************************************************************************************)
+(*                                                                                  *)
+(* For every message, all the correct processes in the destination deliver it only  *)
+(* once, and a process previously sent it.                                          *)
+(*                                                                                  *)
+(************************************************************************************)
 Integrity ==
     <>[]\A m \in AllMessages:
         \A g \in m.d:
