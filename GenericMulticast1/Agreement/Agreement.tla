@@ -7,7 +7,12 @@ CONSTANT NMESSAGES
 CONSTANT CONFLICTR(_, _)
 
 ----------------------------------------------------------
-
+(************************************************************************************)
+(*                                                                                  *)
+(* This algorithm works in an environment with crash-stop failures, but we do not   *)
+(* model processes failing. The set of all processes contains all correct ones.     *)
+(*                                                                                  *)
+(************************************************************************************)
 LOCAL Processes == {i : i \in 1 .. NPROCESSES}
 LOCAL Groups == 1 .. NGROUPS
 LOCAL ProcessesInGroup == [g \in Groups |-> Processes]
@@ -25,33 +30,33 @@ VARIABLES
     MemoryBuffer,
     QuasiReliableChannel,
     AtomicBroadcastBuffer
-Algorithm == INSTANCE GenericMulticast1 WITH
-    INITIAL_MESSAGES <- [g \in Groups |-> MessagesToTuple(MessagesCombinations[(g % NMESSAGES) + 1])]
 
-vars == <<
-    K,
-    PreviousMsgs,
-    Delivered,
-    Votes,
-    MemoryBuffer,
-    QuasiReliableChannel,
-    AtomicBroadcastBuffer
->>
+(************************************************************************************)
+(*                                                                                  *)
+(* Initialize the instance for the Generic Multicast 1. The INITIAL_MESSAGES is a   *)
+(* sequence, totally ordered within a group, wherein the elements are tuples with   *)
+(* the message, state, and timestamp.                                               *)
+(*                                                                                  *)
+(************************************************************************************)
+Algorithm == INSTANCE GenericMulticast1 WITH
+    INITIAL_MESSAGES <- [
+        g \in Groups |->
+            TotallyOrdered(MessagesCombinations[(g % NMESSAGES) + 1])]
 ----------------------------------------------------------
 
+\* Weak fairness is necessary.
 Spec == Algorithm!SpecFair
 
 ----------------------------------------------------------
-(***************************************************************************)
-(*                                                                         *)
-(*     If a correct process GM-Deliver a message `m`, then all correct     *)
-(* processes in `m.d` eventually GM-Deliver `m`.                           *)
-(*                                                                         *)
-(*     We verify that all messages on the messages that will be send, then *)
-(* we verify that exists a process and it did deliverd the message so we   *)
-(* verify that eventually all processes in `m.d` also delivers `m`.        *)
-(*                                                                         *)
-(***************************************************************************)
+(************************************************************************************)
+(*                                                                                  *)
+(* If a correct process deliver a message `m', then all correct processes in `m.d'  *)
+(* eventually delivers `m'.                                                         *)
+(*                                                                                  *)
+(* We verify that all messages in AllMessages, for all the processes that delivered *)
+(* a message, eventually, all the correct members in the destination will deliver.  *)
+(*                                                                                  *)
+(************************************************************************************)
 Agreement ==
     \A m \in AllMessages:
         \A g_i \in Groups:
