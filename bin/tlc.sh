@@ -18,6 +18,6 @@ for configuration in "$1"/"$2"/* ; do \
   if [[ $(echo -n "$configuration") == *".cfg" ]]; then \
     java -cp "$ROOT_FOLDER"/bin/tla2tools.jar -XX:+UseParallelGC \
       -DTLA-Library="$dependencies" tlc2.TLC "$spec_file" \
-      -modelcheck -cleanup -workers auto -config "$configuration"
+      -modelcheck -cleanup -workers auto -noGenerateSpecTE -config "$configuration"
   fi ;
 done

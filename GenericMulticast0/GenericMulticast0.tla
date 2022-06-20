@@ -93,6 +93,9 @@ LOCAL SendOriginatorAndRemoveLocal(self, dest, curr, prev, S) ==
     ELSE IF self = dest THEN S \ {prev}
     ELSE S
 
+\* Check if the given message conflict with any other in the PreviousMsgs.
+LOCAL HasConflict(self, m1) ==
+    \E m2 \in PreviousMsgs[self]: CONFLICTR(m1, m2)
 ------------------------------------------------------------------
 
 (************************************************************************************)
@@ -103,10 +106,10 @@ LOCAL SendOriginatorAndRemoveLocal(self, dest, curr, prev, S) ==
 (************************************************************************************)
 
 LOCAL AssignTimestampHandler(self, msg) ==
-    /\ \/ /\ \E prev \in PreviousMsgs[self]: CONFLICTR(msg, prev)
+    /\ \/ /\ HasConflict(self, msg)
           /\ K' = [K EXCEPT ![self] = K[self] + 1]
           /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![self] = {msg}]
-       \/ /\ \A prev \in PreviousMsgs[self]: ~CONFLICTR(msg, prev)
+       \/ /\ ~HasConflict(self, msg)
           /\ K' = [K EXCEPT ![self] = K[self]]
           /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![self] = PreviousMsgs[self] \cup {msg}]
     /\ Pending' = [Pending EXCEPT ![self] = Pending[self] \cup {<<K'[self], msg>>}]
@@ -129,10 +132,10 @@ LOCAL ComputeSeqNumberHandler(self, ts, msg, origin) ==
 
 LOCAL AssignSeqNumberHandler(self, ts, msg) ==
     /\ \/ /\ ts > K[self]
-          /\ \/ /\ \E prev \in PreviousMsgs[self]: CONFLICTR(msg, prev)
+          /\ \/ /\ HasConflict(self, msg)
                 /\ K' = [K EXCEPT ![self] = ts + 1]
                 /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![self] = {}]
-             \/ /\ \A prev \in PreviousMsgs[self]: CONFLICTR(msg, prev)
+             \/ /\ ~HasConflict(self, msg)
                 /\ K' = [K EXCEPT ![self] = ts]
                 /\ UNCHANGED PreviousMsgs
        \/ /\ ts <= K[self]
