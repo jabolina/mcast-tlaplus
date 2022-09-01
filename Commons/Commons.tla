@@ -11,6 +11,17 @@ LOCAL Choose(S) == CHOOSE x \in S: TRUE
 LOCAL IsEven(x) == x % 2 = 0
 Max(S) == CHOOSE x \in S: \A y \in S: x >= y
 
+AllConflictClass == "All"
+NeverConflictClass == "Never"
+OddConflictClass == "Odd"
+EvenConflictClass == "Even"
+
+FindClass(m, Classes) == 
+    IF AllConflictClass \in Classes THEN AllConflictClass
+    ELSE IF NeverConflictClass \in Classes THEN NeverConflictClass
+    ELSE IF IsEven(m.id) THEN EvenConflictClass
+    ELSE OddConflictClass
+
 --------------------------------------------------------
 (************************************************************************************)
 (*                                                                                  *)
@@ -25,7 +36,7 @@ Max(S) == CHOOSE x \in S: \A y \in S: x >= y
 (* odds. This relationship has a partial ordering.                                  *)
 (*                                                                                  *)
 (************************************************************************************)
-IdConflict(m, n) == IsEven(m.id) = IsEven(n.id)
+IdConflict(m, n) == m.id # n.id /\ IsEven(m.id) = IsEven(n.id)
 
 (************************************************************************************)
 (*                                                                                  *)

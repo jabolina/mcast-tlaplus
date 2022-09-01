@@ -81,6 +81,12 @@ SendMap(Fn(_, _)) ==
             p \in DOMAIN QuasiReliableChannel[g] |->
                 Fn(g, QuasiReliableChannel[g][p])]]
 
+SendTriMap(Fn(_, _, _)) == 
+    /\ QuasiReliableChannel' = [
+        g \in DOMAIN QuasiReliableChannel |-> [
+            p \in DOMAIN QuasiReliableChannel[g] |->
+                Fn(g, p, QuasiReliableChannel[g][p])]]
+
 \* This procedure causes the process in the given to consume the specific message.
 Consume(g, p, m) ==
     /\ QuasiReliableChannel' = [
