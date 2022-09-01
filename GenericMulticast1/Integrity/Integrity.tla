@@ -29,7 +29,9 @@ LOCAL AllMessages == CreateMessages(NMESSAGES + 1, Groups, Processes)
 LOCAL SentMessage == {m \in AllMessages: m.id \in AcceptableMessageIds}
 
 LOCAL MessagesCombinations == CreatePossibleMessages(AllMessages)
-LOCAL CombinationsToSend == [i \in DOMAIN MessagesCombinations |-> SelectSeq(MessagesCombinations[i], LAMBDA m: m \in SentMessage)]
+LOCAL CombinationsToSend == [
+    i \in DOMAIN MessagesCombinations |->
+        SelectSeq(MessagesCombinations[i], LAMBDA m: m \in SentMessage)]
 
 ----------------------------------------------------------
 
@@ -50,11 +52,11 @@ VARIABLES
 (*                                                                                  *)
 (************************************************************************************)
 Algorithm == INSTANCE GenericMulticast1 WITH
-    INITIAL_MESSAGES <- [ g \in Groups |-> TotallyOrdered(CombinationsToSend[(g % NMESSAGES) + 1])]
+    INITIAL_MESSAGES <- [g \in Groups |->
+        TotallyOrdered(CombinationsToSend[1])]
 ----------------------------------------------------------
 
-\* Weak fairness is necessary.
-Spec == Algorithm!SpecFair
+Spec == Algorithm!Spec
 
 ----------------------------------------------------------
 
@@ -67,8 +69,9 @@ LOCAL DeliveredOnlyOnce(g, p, m) ==
 (*                                                                                  *)
 (************************************************************************************)
 Integrity ==
-    <>[]\A m \in AllMessages:
-        \A g \in m.d:
+    []\A m \in AllMessages:
+        \A g \in Groups:
             \A p \in ProcessesInGroup[g]:
-                (p \in Processes /\ DeliveredOnlyOnce(g, p, m)) <=> m \in SentMessage
+                Algorithm!WasDelivered(g, p, m) =>
+                    (DeliveredOnlyOnce(g, p, m) /\ g \in m.d /\ m \in SentMessage)
 ==========================================================

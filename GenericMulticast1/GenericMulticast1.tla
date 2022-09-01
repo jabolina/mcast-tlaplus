@@ -3,6 +3,7 @@
 LOCAL INSTANCE Commons
 LOCAL INSTANCE Naturals
 LOCAL INSTANCE FiniteSets
+LOCAL INSTANCE TLC
 
 \* Number of groups in the algorithm.
 CONSTANT NGROUPS
@@ -94,40 +95,39 @@ LOCAL HasConflict(g, p, m1) ==
 (*                                                                                  *)
 (************************************************************************************)
 
-LOCAL ComputeGroupSeqNumberHandler(g, p, msg, state, ts) ==
-    /\ \/ /\ state = "S0"
-          /\ \/ /\ HasConflict(g, p, msg)
-                /\ K' = [K EXCEPT ![g][p] = K[g][p] + 1]
-                /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![g][p] = {msg}]
-             \/ /\ ~HasConflict(g, p, msg)
-                /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![g][p] = PreviousMsgs[g][p] \cup {msg}]
-                /\ UNCHANGED K
-       \/ /\ state = "S2"
+LOCAL ComputeGroupSeqNumberHandler(g, p, msg, ts) ==
+    /\ \/ /\ HasConflict(g, p, msg)
+          /\ K' = [K EXCEPT ![g][p] = K[g][p] + 1]
+          /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![g][p] = {msg}]
+       \/ /\ ~HasConflict(g, p, msg)
+          /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![g][p] =
+                PreviousMsgs[g][p] \cup {msg}]
+          /\ UNCHANGED K
     /\ \/ /\ Cardinality(msg.d) > 1
-          /\ \/ /\ state = "S0"
-                /\ Memory!Insert(g, p, <<msg, "S1", K'[g][p]>>)
-                /\ QuasiReliable!Send(<<msg, g, K'[g][p]>>)
-             \/ /\ state = "S2"
-                /\ \/ /\ ts > K[g][p]
-                      /\ K' = [K EXCEPT ![g][p] = ts]
-                      /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![g][p] = {}]
-                   \/ /\ ts <= K[g][p]
-                      /\ UNCHANGED <<K, PreviousMsgs>>
-                /\ Memory!Insert(g, p, <<msg, "S3", ts>>)
-                /\ UNCHANGED <<QuasiReliableChannel>>
+          /\ Memory!Insert(g, p, <<msg, "S1", K'[g][p]>>)
+          /\ QuasiReliable!Send(<<msg, g, K'[g][p]>>)
        \/ /\ Cardinality(msg.d) = 1
           /\ Memory!Insert(g, p, <<msg, "S3", K'[g][p]>>)
           /\ UNCHANGED QuasiReliableChannel
     /\ UNCHANGED <<Delivered, Votes>>
 
+LOCAL SynchronizeGroupClockHandler(g, p, m, tsf) ==
+    /\ \/ /\ tsf > K[g][p]
+          /\ K' = [K EXCEPT ![g][p] = tsf]
+          /\ PreviousMsgs' = [PreviousMsgs EXCEPT ![g][p] = {}]
+       \/ /\ tsf <= K[g][p]
+          /\ UNCHANGED <<K, PreviousMsgs>>
+    /\ \/ /\ \E <<n, s, ts>> \in MemoryBuffer[g][p]: s = "S1" /\ m = n
+          /\ Memory!Insert(g, p, <<m, "S3", tsf>>)
+       \/ UNCHANGED MemoryBuffer
+    /\ UNCHANGED <<QuasiReliableChannel, Delivered, Votes>>
+
 LOCAL GatherGroupsTimestampHandler(g, p, msg, ts, tsf) ==
-    /\ \/ /\ ts >= tsf \/ ~HasConflict(g, p, msg)
-          /\ Memory!Insert(g, p, <<msg, "S3", ts>>)
-          /\ UNCHANGED <<K, PreviousMsgs, AtomicBroadcastBuffer, Delivered>>
-       \/ /\ ts < tsf
-          /\ Memory!Insert(g, p, <<msg, "S2", tsf>>)
-          /\ AtomicBroadcast!ABroadcast(g, <<msg, "S2", tsf>>)
-          /\ UNCHANGED <<K, PreviousMsgs, Delivered>>
+   /\ \/ /\ ts < tsf
+         /\ AtomicBroadcast!ABroadcast(g, <<msg, "S2", tsf>>)
+      \/ UNCHANGED AtomicBroadcastBuffer
+   /\ Memory!Insert(g, p, <<msg, "S3", tsf>>)
+   /\ UNCHANGED <<K, PreviousMsgs, Delivered>>
 
 -----------------------------------------------------------------
 
@@ -156,7 +156,7 @@ LOCAL GatherGroupsTimestampHandler(g, p, msg, ts, tsf) ==
 (************************************************************************************)
 ComputeGroupSeqNumber(g, p) ==
     /\ AtomicBroadcast!ABDeliver(g, p,
-        LAMBDA t: ComputeGroupSeqNumberHandler(g, p, t[1], t[2], t[3]))
+        LAMBDA t: t[2] = "S0" /\ ComputeGroupSeqNumberHandler(g, p, t[1], t[3]))
 
 (************************************************************************************)
 (*                                                                                  *)
@@ -173,7 +173,7 @@ ComputeGroupSeqNumber(g, p) ==
 (************************************************************************************)
 LOCAL HasNecessaryVotes(g, p, msg, ballot) ==
     /\ Cardinality(ballot) = Cardinality(msg.d)
-    /\ Memory!Contains(g, p, LAMBDA n: msg.id = n[1].id /\ n[2] = "S1")
+    /\ Memory!Contains(g, p, LAMBDA n: msg = n[1] /\ n[2] = "S1")
 GatherGroupsTimestamp(g, p) ==
     /\ QuasiReliable!ReceiveAndConsume(g, p,
         LAMBDA t:
@@ -186,12 +186,19 @@ GatherGroupsTimestamp(g, p) ==
                IN
                 \* We only execute the procedure when we have proposals from all groups.
                 /\ \/ /\ HasNecessaryVotes(g, p, msg, ballot)
-                      /\ GatherGroupsTimestampHandler(g, p, msg, t[3], elected)
-                      /\ Votes' = [Votes EXCEPT ![g][p] = {x \in Votes[g][p]: x[1] /= msg.id}]
+                      /\ \E <<m, s, ts>> \in MemoryBuffer[g][p]: m = msg
+                        /\ GatherGroupsTimestampHandler(g, p, msg, ts, elected)
+                      /\ Votes' = [Votes EXCEPT ![g][p] = {
+                            x \in Votes[g][p]: x[1] /= msg.id}]
                    \/ /\ ~HasNecessaryVotes(g, p, msg, ballot)
                       /\ Votes' = [Votes EXCEPT ![g][p] = Votes[g][p] \cup {vote}]
-                      /\ UNCHANGED <<MemoryBuffer, K, PreviousMsgs, AtomicBroadcastBuffer>>
+                      /\ UNCHANGED <<MemoryBuffer, K,
+                            PreviousMsgs, AtomicBroadcastBuffer>>
                 /\ UNCHANGED <<Delivered>>)
+
+SynchronizeGroupClock(g, p) ==
+    /\ AtomicBroadcast!ABDeliver(g, p,
+        LAMBDA t: t[2] = "S2" /\ SynchronizeGroupClockHandler(g, p, t[1], t[3]))
 
 (************************************************************************************)
 (*                                                                                  *)
@@ -212,17 +219,20 @@ DoDeliver(g, p) ==
             /\ \/ ~CONFLICTR(m_1, m_2)
                \/ ts_1 < ts_2 \/ (m_1.id < m_2.id /\ ts_1 = ts_2)
         /\ LET
-            G == Memory!ForAllFilter(g, p, LAMBDA t_i, t_j: t_i[2] = "S3" /\ ~CONFLICTR(t_i[1], t_j[1]))
+            G == Memory!ForAllFilter(g, p,
+                LAMBDA t_i, t_j: t_i[2] = "S3" /\ ~CONFLICTR(t_i[1], t_j[1]))
             D == G \cup {<<m_1, "S3", ts_1>>}
             F == {t[1]: t \in D}
            IN
             /\ Memory!Remove(g, p, D)
-            /\ Delivered' = [Delivered EXCEPT ![g][p] = Delivered[g][p] \cup Enumerate(Cardinality(Delivered[g][p]), F)]
-            /\ UNCHANGED <<QuasiReliableChannel, AtomicBroadcastBuffer, Votes, PreviousMsgs, K>>
+            /\ Delivered' = [Delivered EXCEPT ![g][p] =
+                Delivered[g][p] \cup Enumerate(Cardinality(Delivered[g][p]), F)]
+            /\ UNCHANGED <<QuasiReliableChannel, AtomicBroadcastBuffer,
+                    Votes, PreviousMsgs, K>>
 -----------------------------------------------------------------
 
 LOCAL InitProtocol ==
-    /\ K = [i \in Groups |-> [p \in Processes |-> 0]]
+    /\ K = [i \in Groups |-> [p \in Processes |-> i]]
     /\ Memory!Init
     /\ PreviousMsgs = [i \in Groups |-> [p \in Processes |-> {}]]
     /\ Delivered = [i \in Groups |-> [p \in Processes |-> {}]]
@@ -238,6 +248,7 @@ Init == InitProtocol /\ InitCommunication
 Step(g, p) ==
     \/ ComputeGroupSeqNumber(g, p)
     \/ GatherGroupsTimestamp(g, p)
+    \/ SynchronizeGroupClock(g, p)
     \/ DoDeliver(g, p)
 
 GroupStep(g) ==

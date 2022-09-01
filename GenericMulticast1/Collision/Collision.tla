@@ -39,7 +39,7 @@ VARIABLES
 (*                                                                                  *)
 (************************************************************************************)
 Algorithm == INSTANCE GenericMulticast1 WITH
-    INITIAL_MESSAGES <- [g \in Groups |-> TotallyOrdered(MessagesCombinations[(g % NMESSAGES) + 1])]
+    INITIAL_MESSAGES <- [g \in Groups |-> TotallyOrdered(MessagesCombinations[1])]
 ----------------------------------------------------------
 
 Spec == Algorithm!Spec

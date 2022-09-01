@@ -56,8 +56,7 @@ Algorithm == INSTANCE GenericMulticast2 WITH
             CombinationsToSend[(g % NMESSAGES) + 1], CONFLICTR)]
 ----------------------------------------------------------
 
-\* Weak fairness is necessary.
-Spec == Algorithm!SpecFair
+Spec == Algorithm!Spec
 
 ----------------------------------------------------------
 
@@ -70,8 +69,9 @@ Spec == Algorithm!SpecFair
 LOCAL DeliveredOnlyOnce(g, p, m) ==
     Cardinality(Algorithm!FilterDeliveredMessages(g, p, m)) = 1
 Integrity ==
-    <>[]\A m \in AllMessages:
-        \A g \in m.d:
+    []\A m \in AllMessages:
+        \A g \in Groups:
             \A p \in ProcessesInGroup[g]:
-                (p \in Processes /\ DeliveredOnlyOnce(g, p, m)) <=> m \in SentMessage
+                Algorithm!WasDelivered(g, p, m) =>
+                    (DeliveredOnlyOnce(g, p, m) /\ g \in m.d /\ m \in SentMessage)
 ==========================================================

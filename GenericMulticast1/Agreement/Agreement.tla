@@ -1,5 +1,5 @@
 -------------------- MODULE Agreement --------------------
-EXTENDS Naturals, FiniteSets, Commons
+EXTENDS Naturals, FiniteSets, Commons, TLC
 
 CONSTANT NPROCESSES
 CONSTANT NGROUPS
@@ -40,8 +40,7 @@ VARIABLES
 (************************************************************************************)
 Algorithm == INSTANCE GenericMulticast1 WITH
     INITIAL_MESSAGES <- [
-        g \in Groups |->
-            TotallyOrdered(MessagesCombinations[(g % NMESSAGES) + 1])]
+        g \in Groups |-> TotallyOrdered(MessagesCombinations[1])]
 ----------------------------------------------------------
 
 \* Weak fairness is necessary.
@@ -57,12 +56,13 @@ Spec == Algorithm!SpecFair
 (* a message, eventually, all the correct members in the destination will deliver.  *)
 (*                                                                                  *)
 (************************************************************************************)
+LOCAL OnlyCorrects(g) == {x \in ProcessesInGroup[g]: x \in Processes}
 Agreement ==
     \A m \in AllMessages:
         \A g_i \in Groups:
             \E p_i \in ProcessesInGroup[g_i]:
                 Algorithm!WasDelivered(g_i, p_i, m)
                     ~> \A g_j \in m.d :
-                        \E p_j \in ProcessesInGroup[g_j]:
-                            p_j \in Processes /\ Algorithm!WasDelivered(g_j, p_j, m)
+                        \E p_j \in OnlyCorrects(g_j):
+                            Algorithm!WasDelivered(g_j, p_j, m)
 ==========================================================
