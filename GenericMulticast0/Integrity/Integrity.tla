@@ -50,8 +50,7 @@ Algorithm == INSTANCE GenericMulticast0 WITH
     INITIAL_MESSAGES <- {<<"S0", m>>: m \in SentMessage}
 ----------------------------------------------------------
 
-\* Weak fairness is necessary.
-Spec == Algorithm!SpecFair
+Spec == Algorithm!Spec
 
 ----------------------------------------------------------
 LOCAL DeliveredOnlyOnce(p, m) ==
@@ -64,7 +63,8 @@ LOCAL DeliveredOnlyOnce(p, m) ==
 (*                                                                                  *)
 (************************************************************************************)
 Integrity ==
-    <>[]\A m \in AllMessages:
-        \A p \in m.d:
-            (p \in Processes /\ DeliveredOnlyOnce(p, m)) <=> m \in SentMessage
+    []\A m \in AllMessages:
+        \A p \in Processes:
+            Algorithm!WasDelivered(p, m) =>
+                (DeliveredOnlyOnce(p, m) /\ p \in m.d /\ m \in SentMessage)
 ==========================================================

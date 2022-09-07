@@ -57,6 +57,6 @@ Agreement ==
     \A m \in AllMessages:
         \A p \in Processes:
             Algorithm!WasDelivered(p, m)
-                ~> \A q \in m.d:
-                    q \in Processes /\ Algorithm!WasDelivered(q, m)
+                ~> \A q \in {x \in m.d: x \in Processes}:
+                    Algorithm!WasDelivered(q, m)
 ==========================================================
