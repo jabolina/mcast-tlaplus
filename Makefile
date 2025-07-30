@@ -62,6 +62,9 @@ a2-partial-order:
 a2-validity:
 	@$(MAKE) -C Algorithm2 validity
 
+a1-match-proposal:
+	@$(MAKE) -C Algorithm2 match-proposal
+
 article:
 	@$(MAKE) -C Algorithm2 agreement
 	@$(MAKE) -C Algorithm2 collision

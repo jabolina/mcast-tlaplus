@@ -9,6 +9,9 @@ collision:
 integrity:
 	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) Integrity
 
+match-proposal:
+	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) MatchProposal
+
 partial-order:
 	$$0 $(ROOT_FOLDER)/bin/tlc.sh $(SPEC_FOLDER) PartialOrder
 

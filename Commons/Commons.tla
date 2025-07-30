@@ -16,10 +16,10 @@ NeverConflictClass == "Never"
 OddConflictClass == "Odd"
 EvenConflictClass == "Even"
 
-FindClass(m, Classes) == 
+FindClass(m, Classes) ==
     IF AllConflictClass \in Classes THEN AllConflictClass
     ELSE IF NeverConflictClass \in Classes THEN NeverConflictClass
-    ELSE IF IsEven(m.id) THEN EvenConflictClass
+    \*ELSE IF IsEven(m.id) THEN EvenConflictClass
     ELSE OddConflictClass
 
 --------------------------------------------------------

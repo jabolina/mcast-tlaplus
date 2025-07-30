@@ -96,9 +96,25 @@ GBDeliver(g, p, Fn(_)) ==
 (* group will have the same sequence of messages.                                   *)
 (*                                                                                  *)
 (************************************************************************************)
+LOCAL Choose(S) == CHOOSE x \in S: TRUE
+LOCAL Originator(G, P) == <<Choose(G), Choose(P)>>
+
+\* Initialize the message structure we use to check the algorithm.
+LOCAL CreateMessage(id, G, P) ==
+    [id |-> id, d |-> G, o |-> Originator(G, P)]
+
+
+\* 2 = a
+\* 1 = b
+\* 3 = c
+
+LOCAL InitialMessage(m) == <<m, "S0", 0>>
+LOCAL GetMessageToProcess(p, G, P) ==
+    IF p % 2 = 0 THEN <<{InitialMessage(CreateMessage(1, G, P))}, {InitialMessage(CreateMessage(2, G, P))}, {InitialMessage(CreateMessage(3, G, P))}>>
+    ELSE <<{InitialMessage(CreateMessage(1, G, P))}, {InitialMessage(CreateMessage(3, G, P))}, {InitialMessage(CreateMessage(2, G, P))}>>
 Init ==
     /\ GenericBroadcastBuffer = [
         g \in 1 .. NGROUPS |-> [
-            p \in 1 .. NPROCESSES |-> INITIAL_MESSAGES[g]]]
+            p \in 1 .. NPROCESSES |-> GetMessageToProcess(p, 1 .. NGROUPS, 1 .. NPROCESSES)]]
 
 =======================================================================

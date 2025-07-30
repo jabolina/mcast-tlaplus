@@ -71,6 +71,8 @@ VARIABLES
     (********************************************************************************)
     Delivered,
 
+    Proposal,
+
     (********************************************************************************)
     (*                                                                              *)
     (* A set contains the processes' votes for the message's timestamp. This        *)
@@ -82,6 +84,7 @@ VARIABLES
 vars == <<
     K,
     MemoryBuffer,
+    Proposal,
     PreviousMsgs,
     Delivered,
     Votes,
@@ -117,6 +120,7 @@ LOCAL ComputeGroupSeqNumberHandler(g, p, msg, ts) ==
                     PreviousMsgs[Class][g][p] \cup {msg}]
               /\ UNCHANGED K
         /\ Memory!Insert(g, p, <<msg, "S1", K'[Class][g][p]>>)
+        /\ Proposal' = [Proposal EXCEPT ![g][p] = Proposal[g][p] \cup {<<K'[Class][g][p], msg>>}]
         /\ QuasiReliable!SendTriMap(LAMBDA g2, p2, S: InternalSendWithLocal(<<msg, g, K'[Class][g][p]>>, g, p, g2, p2, S))
         /\ UNCHANGED <<Delivered, Votes>>
 
@@ -134,14 +138,14 @@ LOCAL SynchronizeGroupClockHandler(g, p, m, tsf) ==
                 /\ m = n
                 /\ Memory!Insert(g, p, <<m, "S3", K'[Class][g][p]>>)
            \/ /\ UNCHANGED MemoryBuffer
-        /\ UNCHANGED <<QuasiReliableChannel, Delivered, Votes>>
+        /\ UNCHANGED <<QuasiReliableChannel, Delivered, Votes, Proposal>>
 
 LOCAL GatherGroupsTimestampHandler(g, p, msg, ts, tsf) ==
    /\ \/ /\ ts < tsf
          /\ GenericBroadcast!GBroadcast(g, <<msg, "S2", tsf>>)
       \/ UNCHANGED GenericBroadcastBuffer
    /\ Memory!Insert(g, p, <<msg, "S3", tsf>>)
-   /\ UNCHANGED <<K, PreviousMsgs, Delivered>>
+   /\ UNCHANGED <<K, PreviousMsgs, Delivered, Proposal>>
 
 -----------------------------------------------------------------
 
@@ -207,7 +211,7 @@ GatherGroupsTimestamp(g, p) ==
                    \/ /\ ~HasNecessaryVotes(g, p, msg, ballot)
                       /\ Votes' = [Votes EXCEPT ![g][p] = Votes[g][p] \cup {vote}]
                       /\ UNCHANGED <<MemoryBuffer, K, PreviousMsgs, GenericBroadcastBuffer>>
-                /\ UNCHANGED <<Delivered>>)
+                /\ UNCHANGED <<Delivered, Proposal>>)
 
 SynchronizeGroupClock(g, p) ==
     /\ GenericBroadcast!GBDeliver(g, p,
@@ -241,7 +245,7 @@ DoDeliver(g, p) ==
             /\ Delivered' = [Delivered EXCEPT ![g][p] =
                 Delivered[g][p] \cup Enumerate(Cardinality(Delivered[g][p]), F)]
             /\ UNCHANGED <<QuasiReliableChannel,
-                GenericBroadcastBuffer, Votes, PreviousMsgs, K>>
+                GenericBroadcastBuffer, Votes, PreviousMsgs, K, Proposal>>
 -----------------------------------------------------------------
 
 LOCAL InitProtocol ==
@@ -249,6 +253,7 @@ LOCAL InitProtocol ==
     /\ Memory!Init
     /\ PreviousMsgs = [c \in CONFLICT_CLASSES |-> [i \in Groups |-> [p \in Processes |-> {}]]]
     /\ Delivered = [i \in Groups |-> [p \in Processes |-> {}]]
+    /\ Proposal = [i \in Groups |-> [p \in Processes |-> {}]]
     /\ Votes = [i \in Groups |-> [p \in Processes |-> {}]]
 
 LOCAL InitCommunication ==
